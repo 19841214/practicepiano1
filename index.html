@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鋼琴音程練習模擬器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .piano-key {
+            transition: all 0.1s ease;
+            user-select: none;
+        }
+        .white-key {
+            height: 200px;
+            width: 50px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 0 0 4px 4px;
+            z-index: 1;
+        }
+        .white-key:active, .white-key.active {
+            background: #e5e7eb;
+            transform: translateY(2px);
+        }
+        .black-key {
+            height: 120px;
+            width: 32px;
+            background: #1f2937;
+            margin-left: -16px;
+            margin-right: -16px;
+            z-index: 2;
+            border-radius: 0 0 2px 2px;
+        }
+        .black-key:active, .black-key.active {
+            background: #000;
+            transform: translateY(2px);
+        }
+        .key-label {
+            pointer-events: none;
+            font-size: 0.75rem;
+            bottom: 10px;
+        }
+        .highlight-root { background-color: #3b82f6 !important; color: white; }
+        .highlight-correct { background-color: #10b981 !important; color: white; }
+        .highlight-wrong { background-color: #ef4444 !important; color: white; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 md:p-8">
+
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl p-6 mb-8">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2 text-center">鋼琴音程練習模擬器</h1>
+        <p class="text-slate-600 text-center mb-6">專注於練習：大小三度、大小六度</p>
+
+        <!-- 控制面板 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-slate-100 p-4 rounded-lg">
+                <h2 class="font-semibold mb-2">練習模式</h2>
+                <div class="flex flex-col space-y-2">
+                    <button id="mode-explore" class="bg-blue-600 text-white px-4 py-2 rounded transition hover:bg-blue-700">自由探索</button>
+                    <button id="mode-quiz" class="bg-slate-200 text-slate-700 px-4 py-2 rounded transition hover:bg-slate-300">音程測驗</button>
+                </div>
+            </div>
+
+            <div id="quiz-settings" class="bg-slate-100 p-4 rounded-lg opacity-50 pointer-events-none">
+                <h2 class="font-semibold mb-2">測驗設定</h2>
+                <div class="space-y-1 text-sm">
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="3m"> 小三度 (3m)</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="3M"> 大三度 (3M)</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="6m"> 小六度 (6m)</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="6M"> 大六度 (6M)</label>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 p-4 rounded-lg flex flex-col justify-center items-center">
+                <div id="status-display" class="text-center">
+                    <p class="text-sm text-slate-500 mb-1">目前狀態</p>
+                    <p id="current-info" class="text-xl font-bold text-blue-600">自由彈奏</p>
+                </div>
+                <button id="next-btn" class="hidden mt-4 bg-green-600 text-white px-6 py-2 rounded-full font-bold hover:bg-green-700">下一題</button>
+            </div>
+        </div>
+
+        <!-- 鋼琴區域 -->
+        <div class="relative overflow-x-auto pb-4">
+            <div id="piano" class="flex justify-center min-w-max p-4">
+                <!-- 鍵盤會由 JS 產生 -->
+            </div>
+        </div>
+
+        <!-- 說明 -->
+        <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div class="p-2 border rounded border-slate-200">
+                <span class="block font-bold text-blue-600">小三度</span>
+                <span class="text-xs text-slate-500">3 個半音</span>
+            </div>
+            <div class="p-2 border rounded border-slate-200">
+                <span class="block font-bold text-blue-600">大三度</span>
+                <span class="text-xs text-slate-500">4 個半音</span>
+            </div>
+            <div class="p-2 border rounded border-slate-200">
+                <span class="block font-bold text-blue-600">小六度</span>
+                <span class="text-xs text-slate-500">8 個半音</span>
+            </div>
+            <div class="p-2 border rounded border-slate-200">
+                <span class="block font-bold text-blue-600">大六度</span>
+                <span class="text-xs text-slate-500">9 個半音</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-slate-400 text-sm">
+        提示：可以使用鍵盤按鍵 `A` 到 `K` 彈奏白鍵。
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [
+            { name: 'C', freq: 261.63, black: false },
+            { name: 'C#', freq: 277.18, black: true },
+            { name: 'D', freq: 293.66, black: false },
+            { name: 'D#', freq: 311.13, black: true },
+            { name: 'E', freq: 329.63, black: false },
+            { name: 'F', freq: 349.23, black: false },
+            { name: 'F#', freq: 369.99, black: true },
+            { name: 'G', freq: 392.00, black: false },
+            { name: 'G#', freq: 415.30, black: true },
+            { name: 'A', freq: 440.00, black: false },
+            { name: 'A#', freq: 466.16, black: true },
+            { name: 'B', freq: 493.88, black: false },
+            { name: 'C2', freq: 523.25, black: false },
+            { name: 'C#2', freq: 554.37, black: true },
+            { name: 'D2', freq: 587.33, black: false },
+            { name: 'D#2', freq: 622.25, black: true },
+            { name: 'E2', freq: 659.25, black: false },
+            { name: 'F2', freq: 698.46, black: false },
+            { name: 'F#2', freq: 739.99, black: true },
+            { name: 'G2', freq: 783.99, black: false },
+            { name: 'G#2', freq: 830.61, black: true },
+            { name: 'A2', freq: 880.00, black: false },
+            { name: 'A#2', freq: 932.33, black: true },
+            { name: 'B2', freq: 987.77, black: false }
+        ];
+
+        const keyMap = { 'a':0, 's':2, 'd':4, 'f':5, 'g':7, 'h':9, 'j':11, 'k':12 };
+        const intervalSemitones = { '3m': 3, '3M': 4, '6m': 8, '6M': 9 };
+        const intervalNames = { '3m': '小三度', '3M': '大三度', '6m': '小六度', '6M': '大六度' };
+
+        let mode = 'explore';
+        let quizTarget = null;
+        let quizRoot = null;
+        let activeOscillators = {};
+
+        // 初始化鋼琴
+        const pianoEl = document.getElementById('piano');
+        notes.forEach((note, index) => {
+            const key = document.createElement('div');
+            key.dataset.index = index;
+            key.className = `piano-key flex flex-col items-center relative ${note.black ? 'black-key' : 'white-key'}`;
+            
+            const label = document.createElement('span');
+            label.className = 'key-label absolute bottom-2 text-gray-400';
+            label.innerText = note.name.replace('2', '');
+            key.appendChild(label);
+
+            key.addEventListener('mousedown', () => playNote(index));
+            key.addEventListener('mouseup', () => stopNote(index));
+            key.addEventListener('mouseleave', () => stopNote(index));
+            
+            pianoEl.appendChild(key);
+        });
+
+        // 音頻處理
+        function playNote(index) {
+            if (activeOscillators[index]) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(notes[index].freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            activeOscillators[index] = { osc, gain };
+            
+            const keyEl = document.querySelector(`[data-index="${index}"]`);
+            keyEl.classList.add('active');
+
+            if (mode === 'quiz') {
+                handleQuizClick(index);
+            }
+        }
+
+        function stopNote(index) {
+            if (activeOscillators[index]) {
+                const { osc, gain } = activeOscillators[index];
+                gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+                setTimeout(() => osc.stop(), 100);
+                delete activeOscillators[index];
+            }
+            const keyEl = document.querySelector(`[data-index="${index}"]`);
+            keyEl.classList.remove('active');
+        }
+
+        // 測驗邏輯
+        function startQuiz() {
+            mode = 'quiz';
+            document.getElementById('mode-quiz').classList.replace('bg-slate-200', 'bg-blue-600');
+            document.getElementById('mode-quiz').classList.replace('text-slate-700', 'text-white');
+            document.getElementById('mode-explore').classList.replace('bg-blue-600', 'bg-slate-200');
+            document.getElementById('mode-explore').classList.replace('text-white', 'text-slate-700');
+            document.getElementById('quiz-settings').classList.remove('opacity-50', 'pointer-events-none');
+            nextQuizTask();
+        }
+
+        function nextQuizTask() {
+            clearHighlights();
+            document.getElementById('next-btn').classList.add('hidden');
+            
+            const activeIntervals = Array.from(document.querySelectorAll('.interval-toggle:checked')).map(el => el.value);
+            if (activeIntervals.length === 0) {
+                alert("請至少選擇一個音程進行練習！");
+                return;
+            }
+
+            const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
+            const semitones = intervalSemitones[randomInterval];
+            
+            // 隨機選根音，確保加了音程後不會超過鋼琴範圍
+            quizRoot = Math.floor(Math.random() * (notes.length - semitones));
+            quizTarget = quizRoot + semitones;
+
+            const rootName = notes[quizRoot].name.replace('2', '');
+            document.getElementById('current-info').innerText = `找出 ${rootName} 的 ${intervalNames[randomInterval]}`;
+            
+            // 高亮根音
+            document.querySelector(`[data-index="${quizRoot}"]`).classList.add('highlight-root');
+        }
+
+        function handleQuizClick(clickedIndex) {
+            if (clickedIndex === quizRoot || document.getElementById('next-btn').classList.contains('block')) return;
+
+            const keyEl = document.querySelector(`[data-index="${clickedIndex}"]`);
+            if (clickedIndex === quizTarget) {
+                keyEl.classList.add('highlight-correct');
+                document.getElementById('current-info').innerText = "正確！做得好！";
+                document.getElementById('next-btn').classList.remove('hidden');
+            } else {
+                keyEl.classList.add('highlight-wrong');
+                setTimeout(() => keyEl.classList.remove('highlight-wrong'), 500);
+            }
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.piano-key').forEach(el => {
+                el.classList.remove('highlight-root', 'highlight-correct', 'highlight-wrong');
+            });
+        }
+
+        // 事件監聽
+        document.getElementById('mode-explore').addEventListener('click', () => {
+            mode = 'explore';
+            document.getElementById('mode-explore').classList.replace('bg-slate-200', 'bg-blue-600');
+            document.getElementById('mode-explore').classList.replace('text-slate-700', 'text-white');
+            document.getElementById('mode-quiz').classList.replace('bg-blue-600', 'bg-slate-200');
+            document.getElementById('mode-quiz').classList.replace('text-white', 'text-slate-700');
+            document.getElementById('quiz-settings').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('current-info').innerText = "自由彈奏";
+            document.getElementById('next-btn').classList.add('hidden');
+            clearHighlights();
+        });
+
+        document.getElementById('mode-quiz').addEventListener('click', startQuiz);
+        document.getElementById('next-btn').addEventListener('click', nextQuizTask);
+
+        window.addEventListener('keydown', (e) => {
+            const index = keyMap[e.key.toLowerCase()];
+            if (index !== undefined) playNote(index);
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const index = keyMap[e.key.toLowerCase()];
+            if (index !== undefined) stopNote(index);
+        });
+    </script>
+</body>
+</html>
