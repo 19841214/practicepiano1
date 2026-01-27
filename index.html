@@ -3,31 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鋼琴音程練習模擬器</title>
+    <title>鋼琴音程練習模擬器 - 五線譜版</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 VexFlow 用於繪製五線譜 -->
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     <style>
         .piano-key {
             transition: all 0.1s ease;
             user-select: none;
+            cursor: pointer;
         }
         .white-key {
-            height: 200px;
-            width: 50px;
+            height: 180px;
+            width: 45px;
             background: white;
             border: 1px solid #ccc;
             border-radius: 0 0 4px 4px;
             z-index: 1;
         }
         .white-key:active, .white-key.active {
-            background: #e5e7eb;
+            background: #f3f4f6;
             transform: translateY(2px);
         }
         .black-key {
-            height: 120px;
-            width: 32px;
+            height: 110px;
+            width: 28px;
             background: #1f2937;
-            margin-left: -16px;
-            margin-right: -16px;
+            margin-left: -14px;
+            margin-right: -14px;
             z-index: 2;
             border-radius: 0 0 2px 2px;
         }
@@ -35,113 +38,92 @@
             background: #000;
             transform: translateY(2px);
         }
-        .key-label {
-            pointer-events: none;
-            font-size: 0.75rem;
-            bottom: 10px;
+        .highlight-root { background-color: #3b82f6 !important; border-color: #2563eb; }
+        .highlight-correct { background-color: #10b981 !important; border-color: #059669; }
+        .highlight-wrong { background-color: #ef4444 !important; border-color: #dc2626; }
+        
+        #staff-container {
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px;
         }
-        .highlight-root { background-color: #3b82f6 !important; color: white; }
-        .highlight-correct { background-color: #10b981 !important; color: white; }
-        .highlight-wrong { background-color: #ef4444 !important; color: white; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 md:p-8">
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4">
 
-    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl p-6 mb-8">
-        <h1 class="text-3xl font-bold text-slate-800 mb-2 text-center">鋼琴音程練習模擬器</h1>
-        <p class="text-slate-600 text-center mb-6">專注於練習：大小三度、大小六度</p>
+    <div class="max-w-5xl w-full bg-white rounded-2xl shadow-xl p-6 mb-4">
+        <h1 class="text-2xl font-bold text-slate-800 mb-2 text-center">鋼琴音程與五線譜練習</h1>
+        
+        <!-- 五線譜顯示區 -->
+        <div id="staff-container" class="mb-6 border border-slate-200 shadow-inner">
+            <div id="output"></div>
+        </div>
 
         <!-- 控制面板 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-slate-100 p-4 rounded-lg">
-                <h2 class="font-semibold mb-2">練習模式</h2>
-                <div class="flex flex-col space-y-2">
-                    <button id="mode-explore" class="bg-blue-600 text-white px-4 py-2 rounded transition hover:bg-blue-700">自由探索</button>
-                    <button id="mode-quiz" class="bg-slate-200 text-slate-700 px-4 py-2 rounded transition hover:bg-slate-300">音程測驗</button>
+                <h2 class="font-semibold mb-2">模式</h2>
+                <div class="flex space-x-2">
+                    <button id="mode-explore" class="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm transition hover:bg-blue-700">自由探索</button>
+                    <button id="mode-quiz" class="flex-1 bg-slate-200 text-slate-700 px-3 py-2 rounded text-sm transition hover:bg-slate-300">音程測驗</button>
                 </div>
             </div>
 
             <div id="quiz-settings" class="bg-slate-100 p-4 rounded-lg opacity-50 pointer-events-none">
-                <h2 class="font-semibold mb-2">測驗設定</h2>
-                <div class="space-y-1 text-sm">
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="3m"> 小三度 (3m)</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="3M"> 大三度 (3M)</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="6m"> 小六度 (6m)</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-2" value="6M"> 大六度 (6M)</label>
+                <h2 class="font-semibold mb-2">選取音程</h2>
+                <div class="grid grid-cols-2 gap-x-2 text-xs">
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3m"> 小三度</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3M"> 大三度</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度</label>
                 </div>
             </div>
 
-            <div class="bg-slate-100 p-4 rounded-lg flex flex-col justify-center items-center">
-                <div id="status-display" class="text-center">
-                    <p class="text-sm text-slate-500 mb-1">目前狀態</p>
-                    <p id="current-info" class="text-xl font-bold text-blue-600">自由彈奏</p>
-                </div>
-                <button id="next-btn" class="hidden mt-4 bg-green-600 text-white px-6 py-2 rounded-full font-bold hover:bg-green-700">下一題</button>
+            <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg flex flex-col justify-center items-center">
+                <p id="current-info" class="text-lg font-bold text-blue-700 text-center">點擊琴鍵開始</p>
+                <button id="next-btn" class="hidden mt-2 bg-green-600 text-white px-6 py-1 rounded-full font-bold hover:bg-green-700 transition">下一題</button>
             </div>
         </div>
 
         <!-- 鋼琴區域 -->
-        <div class="relative overflow-x-auto pb-4">
-            <div id="piano" class="flex justify-center min-w-max p-4">
-                <!-- 鍵盤會由 JS 產生 -->
+        <div class="relative overflow-x-auto pb-4 select-none">
+            <div id="piano" class="flex justify-center min-w-max p-2">
+                <!-- 鍵盤由 JS 產生 -->
             </div>
         </div>
-
-        <!-- 說明 -->
-        <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div class="p-2 border rounded border-slate-200">
-                <span class="block font-bold text-blue-600">小三度</span>
-                <span class="text-xs text-slate-500">3 個半音</span>
-            </div>
-            <div class="p-2 border rounded border-slate-200">
-                <span class="block font-bold text-blue-600">大三度</span>
-                <span class="text-xs text-slate-500">4 個半音</span>
-            </div>
-            <div class="p-2 border rounded border-slate-200">
-                <span class="block font-bold text-blue-600">小六度</span>
-                <span class="text-xs text-slate-500">8 個半音</span>
-            </div>
-            <div class="p-2 border rounded border-slate-200">
-                <span class="block font-bold text-blue-600">大六度</span>
-                <span class="text-xs text-slate-500">9 個半音</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="text-slate-400 text-sm">
-        提示：可以使用鍵盤按鍵 `A` 到 `K` 彈奏白鍵。
     </div>
 
     <script>
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Beam } = Vex.Flow;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 音符數據，包含五線譜位置訊息
         const notes = [
-            { name: 'C', freq: 261.63, black: false },
-            { name: 'C#', freq: 277.18, black: true },
-            { name: 'D', freq: 293.66, black: false },
-            { name: 'D#', freq: 311.13, black: true },
-            { name: 'E', freq: 329.63, black: false },
-            { name: 'F', freq: 349.23, black: false },
-            { name: 'F#', freq: 369.99, black: true },
-            { name: 'G', freq: 392.00, black: false },
-            { name: 'G#', freq: 415.30, black: true },
-            { name: 'A', freq: 440.00, black: false },
-            { name: 'A#', freq: 466.16, black: true },
-            { name: 'B', freq: 493.88, black: false },
-            { name: 'C2', freq: 523.25, black: false },
-            { name: 'C#2', freq: 554.37, black: true },
-            { name: 'D2', freq: 587.33, black: false },
-            { name: 'D#2', freq: 622.25, black: true },
-            { name: 'E2', freq: 659.25, black: false },
-            { name: 'F2', freq: 698.46, black: false },
-            { name: 'F#2', freq: 739.99, black: true },
-            { name: 'G2', freq: 783.99, black: false },
-            { name: 'G#2', freq: 830.61, black: true },
-            { name: 'A2', freq: 880.00, black: false },
-            { name: 'A#2', freq: 932.33, black: true },
-            { name: 'B2', freq: 987.77, black: false }
+            { name: 'C',  freq: 261.63, black: false, vexKey: 'c/4' },
+            { name: 'C#', freq: 277.18, black: true,  vexKey: 'c#/4' },
+            { name: 'D',  freq: 293.66, black: false, vexKey: 'd/4' },
+            { name: 'D#', freq: 311.13, black: true,  vexKey: 'd#/4' },
+            { name: 'E',  freq: 329.63, black: false, vexKey: 'e/4' },
+            { name: 'F',  freq: 349.23, black: false, vexKey: 'f/4' },
+            { name: 'F#', freq: 369.99, black: true,  vexKey: 'f#/4' },
+            { name: 'G',  freq: 392.00, black: false, vexKey: 'g/4' },
+            { name: 'G#', freq: 415.30, black: true,  vexKey: 'g#/4' },
+            { name: 'A',  freq: 440.00, black: false, vexKey: 'a/4' },
+            { name: 'A#', freq: 466.16, black: true,  vexKey: 'a#/4' },
+            { name: 'B',  freq: 493.88, black: false, vexKey: 'b/4' },
+            { name: 'C2', freq: 523.25, black: false, vexKey: 'c/5' },
+            { name: 'C#2',freq: 554.37, black: true,  vexKey: 'c#/5' },
+            { name: 'D2', freq: 587.33, black: false, vexKey: 'd/5' },
+            { name: 'D#2',freq: 622.25, black: true,  vexKey: 'd#/5' },
+            { name: 'E2', freq: 659.25, black: false, vexKey: 'e/5' },
+            { name: 'F2', freq: 698.46, black: false, vexKey: 'f/5' },
+            { name: 'F#2',freq: 739.99, black: true,  vexKey: 'f#/5' },
+            { name: 'G2', freq: 783.99, black: false, vexKey: 'g/5' }
         ];
 
-        const keyMap = { 'a':0, 's':2, 'd':4, 'f':5, 'g':7, 'h':9, 'j':11, 'k':12 };
         const intervalSemitones = { '3m': 3, '3M': 4, '6m': 8, '6M': 9 };
         const intervalNames = { '3m': '小三度', '3M': '大三度', '6m': '小六度', '6M': '大六度' };
 
@@ -149,6 +131,46 @@
         let quizTarget = null;
         let quizRoot = null;
         let activeOscillators = {};
+        let currentNotesOnStaff = [];
+
+        // 初始化五線譜渲染器
+        const div = document.getElementById("output");
+        const renderer = new Renderer(div, Renderer.Backends.SVG);
+        renderer.resize(400, 150);
+        const context = renderer.getContext();
+
+        function drawStaff(noteIndices = []) {
+            context.clear();
+            const stave = new Stave(10, 20, 380);
+            stave.addClef("treble").setContext(context).draw();
+
+            if (noteIndices.length > 0) {
+                const staveNotes = noteIndices.map(idx => {
+                    const noteData = notes[idx];
+                    const key = noteData.vexKey;
+                    const vNote = new StaveNote({ keys: [key], duration: "q" });
+                    
+                    // 處理升降號
+                    if (key.includes('#')) {
+                        vNote.addModifier(new Accidental("#"));
+                    }
+                    
+                    // 測驗模式下的顏色標註
+                    if (mode === 'quiz') {
+                        if (idx === quizRoot) vNote.setStyle({ fillStyle: "#3b82f6", strokeStyle: "#3b82f6" });
+                        else if (idx === quizTarget && noteIndices.includes(quizTarget)) 
+                            vNote.setStyle({ fillStyle: "#10b981", strokeStyle: "#10b981" });
+                    }
+                    
+                    return vNote;
+                });
+
+                const voice = new Voice({ num_beats: noteIndices.length, beat_value: 4 });
+                voice.addTickables(staveNotes);
+                new Formatter().joinVoices([voice]).format([voice], 300);
+                voice.draw(context, stave);
+            }
+        }
 
         // 初始化鋼琴
         const pianoEl = document.getElementById('piano');
@@ -158,7 +180,7 @@
             key.className = `piano-key flex flex-col items-center relative ${note.black ? 'black-key' : 'white-key'}`;
             
             const label = document.createElement('span');
-            label.className = 'key-label absolute bottom-2 text-gray-400';
+            label.className = 'key-label pointer-events-none absolute bottom-2 text-[10px] text-gray-400 font-bold';
             label.innerText = note.name.replace('2', '');
             key.appendChild(label);
 
@@ -169,29 +191,27 @@
             pianoEl.appendChild(key);
         });
 
-        // 音頻處理
         function playNote(index) {
             if (activeOscillators[index]) return;
             
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            
-            osc.type = 'triangle';
+            osc.type = 'sine';
             osc.frequency.setValueAtTime(notes[index].freq, audioCtx.currentTime);
-            
             gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-            
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
             osc.start();
             activeOscillators[index] = { osc, gain };
             
-            const keyEl = document.querySelector(`[data-index="${index}"]`);
-            keyEl.classList.add('active');
+            document.querySelector(`[data-index="${index}"]`).classList.add('active');
 
-            if (mode === 'quiz') {
+            if (mode === 'explore') {
+                currentNotesOnStaff = [index];
+                drawStaff(currentNotesOnStaff);
+                document.getElementById('current-info').innerText = `目前音符: ${notes[index].name.replace('2', '')}`;
+            } else {
                 handleQuizClick(index);
             }
         }
@@ -200,56 +220,46 @@
             if (activeOscillators[index]) {
                 const { osc, gain } = activeOscillators[index];
                 gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
-                setTimeout(() => osc.stop(), 100);
+                setTimeout(() => osc.stop(), 150);
                 delete activeOscillators[index];
             }
-            const keyEl = document.querySelector(`[data-index="${index}"]`);
-            keyEl.classList.remove('active');
+            document.querySelector(`[data-index="${index}"]`).classList.remove('active');
         }
 
         // 測驗邏輯
-        function startQuiz() {
-            mode = 'quiz';
-            document.getElementById('mode-quiz').classList.replace('bg-slate-200', 'bg-blue-600');
-            document.getElementById('mode-quiz').classList.replace('text-slate-700', 'text-white');
-            document.getElementById('mode-explore').classList.replace('bg-blue-600', 'bg-slate-200');
-            document.getElementById('mode-explore').classList.replace('text-white', 'text-slate-700');
-            document.getElementById('quiz-settings').classList.remove('opacity-50', 'pointer-events-none');
-            nextQuizTask();
-        }
-
         function nextQuizTask() {
             clearHighlights();
             document.getElementById('next-btn').classList.add('hidden');
             
             const activeIntervals = Array.from(document.querySelectorAll('.interval-toggle:checked')).map(el => el.value);
             if (activeIntervals.length === 0) {
-                alert("請至少選擇一個音程進行練習！");
+                alert("請至少選一個音程");
                 return;
             }
 
             const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
             const semitones = intervalSemitones[randomInterval];
             
-            // 隨機選根音，確保加了音程後不會超過鋼琴範圍
             quizRoot = Math.floor(Math.random() * (notes.length - semitones));
             quizTarget = quizRoot + semitones;
 
             const rootName = notes[quizRoot].name.replace('2', '');
-            document.getElementById('current-info').innerText = `找出 ${rootName} 的 ${intervalNames[randomInterval]}`;
+            document.getElementById('current-info').innerText = `請找出 ${rootName} 的「${intervalNames[randomInterval]}」`;
             
-            // 高亮根音
             document.querySelector(`[data-index="${quizRoot}"]`).classList.add('highlight-root');
+            currentNotesOnStaff = [quizRoot];
+            drawStaff(currentNotesOnStaff);
         }
 
         function handleQuizClick(clickedIndex) {
-            if (clickedIndex === quizRoot || document.getElementById('next-btn').classList.contains('block')) return;
+            if (clickedIndex === quizRoot || !document.getElementById('next-btn').classList.contains('hidden')) return;
 
             const keyEl = document.querySelector(`[data-index="${clickedIndex}"]`);
             if (clickedIndex === quizTarget) {
                 keyEl.classList.add('highlight-correct');
-                document.getElementById('current-info').innerText = "正確！做得好！";
+                document.getElementById('current-info').innerText = "太棒了！完全正確";
                 document.getElementById('next-btn').classList.remove('hidden');
+                drawStaff([quizRoot, quizTarget]); // 畫出兩個音
             } else {
                 keyEl.classList.add('highlight-wrong');
                 setTimeout(() => keyEl.classList.remove('highlight-wrong'), 500);
@@ -262,7 +272,7 @@
             });
         }
 
-        // 事件監聽
+        // 切換模式
         document.getElementById('mode-explore').addEventListener('click', () => {
             mode = 'explore';
             document.getElementById('mode-explore').classList.replace('bg-slate-200', 'bg-blue-600');
@@ -270,23 +280,26 @@
             document.getElementById('mode-quiz').classList.replace('bg-blue-600', 'bg-slate-200');
             document.getElementById('mode-quiz').classList.replace('text-white', 'text-slate-700');
             document.getElementById('quiz-settings').classList.add('opacity-50', 'pointer-events-none');
-            document.getElementById('current-info').innerText = "自由彈奏";
+            document.getElementById('current-info').innerText = "自由探索模式";
             document.getElementById('next-btn').classList.add('hidden');
             clearHighlights();
+            drawStaff([]);
         });
 
-        document.getElementById('mode-quiz').addEventListener('click', startQuiz);
+        document.getElementById('mode-quiz').addEventListener('click', () => {
+            mode = 'quiz';
+            document.getElementById('mode-quiz').classList.replace('bg-slate-200', 'bg-blue-600');
+            document.getElementById('mode-quiz').classList.replace('text-slate-700', 'text-white');
+            document.getElementById('mode-explore').classList.replace('bg-blue-600', 'bg-slate-200');
+            document.getElementById('mode-explore').classList.replace('text-white', 'text-slate-700');
+            document.getElementById('quiz-settings').classList.remove('opacity-50', 'pointer-events-none');
+            nextQuizTask();
+        });
+
         document.getElementById('next-btn').addEventListener('click', nextQuizTask);
 
-        window.addEventListener('keydown', (e) => {
-            const index = keyMap[e.key.toLowerCase()];
-            if (index !== undefined) playNote(index);
-        });
-
-        window.addEventListener('keyup', (e) => {
-            const index = keyMap[e.key.toLowerCase()];
-            if (index !== undefined) stopNote(index);
-        });
+        // 初始繪製空譜
+        drawStaff([]);
     </script>
 </body>
 </html>
