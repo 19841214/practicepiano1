@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鋼琴音程練習模擬器 - 五線譜版</title>
+    <title>鋼琴音程練習模擬器 - 全音程版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 VexFlow 用於繪製五線譜 -->
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
@@ -14,8 +14,8 @@
             cursor: pointer;
         }
         .white-key {
-            height: 180px;
-            width: 45px;
+            height: 160px;
+            width: 40px;
             background: white;
             border: 1px solid #ccc;
             border-radius: 0 0 4px 4px;
@@ -26,11 +26,11 @@
             transform: translateY(2px);
         }
         .black-key {
-            height: 110px;
-            width: 28px;
+            height: 100px;
+            width: 26px;
             background: #1f2937;
-            margin-left: -14px;
-            margin-right: -14px;
+            margin-left: -13px;
+            margin-right: -13px;
             z-index: 2;
             border-radius: 0 0 2px 2px;
         }
@@ -38,9 +38,9 @@
             background: #000;
             transform: translateY(2px);
         }
-        .highlight-root { background-color: #3b82f6 !important; border-color: #2563eb; }
-        .highlight-correct { background-color: #10b981 !important; border-color: #059669; }
-        .highlight-wrong { background-color: #ef4444 !important; border-color: #dc2626; }
+        .highlight-root { background-color: #3b82f6 !important; border-color: #2563eb; color: white; }
+        .highlight-correct { background-color: #10b981 !important; border-color: #059669; color: white; }
+        .highlight-wrong { background-color: #ef4444 !important; border-color: #dc2626; color: white; }
         
         #staff-container {
             background: white;
@@ -73,17 +73,21 @@
             </div>
 
             <div id="quiz-settings" class="bg-slate-100 p-4 rounded-lg opacity-50 pointer-events-none">
-                <h2 class="font-semibold mb-2">選取音程</h2>
-                <div class="grid grid-cols-2 gap-x-2 text-xs">
+                <h2 class="font-semibold mb-2 text-sm">選取練習音程</h2>
+                <div class="grid grid-cols-2 gap-x-2 text-[10px]">
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2m"> 小二度</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2M"> 大二度</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3m"> 小三度</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3M"> 大三度</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7m"> 小七度</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7M"> 大七度</label>
                 </div>
             </div>
 
             <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg flex flex-col justify-center items-center">
-                <p id="current-info" class="text-lg font-bold text-blue-700 text-center">點擊琴鍵開始</p>
+                <p id="current-info" class="text-base font-bold text-blue-700 text-center">點擊琴鍵開始</p>
                 <button id="next-btn" class="hidden mt-2 bg-green-600 text-white px-6 py-1 rounded-full font-bold hover:bg-green-700 transition">下一題</button>
             </div>
         </div>
@@ -97,10 +101,10 @@
     </div>
 
     <script>
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Beam } = Vex.Flow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // 音符數據，包含五線譜位置訊息
+        // 音符數據 (擴展到兩個八度以上以支援七度練習)
         const notes = [
             { name: 'C',  freq: 261.63, black: false, vexKey: 'c/4' },
             { name: 'C#', freq: 277.18, black: true,  vexKey: 'c#/4' },
@@ -121,45 +125,57 @@
             { name: 'E2', freq: 659.25, black: false, vexKey: 'e/5' },
             { name: 'F2', freq: 698.46, black: false, vexKey: 'f/5' },
             { name: 'F#2',freq: 739.99, black: true,  vexKey: 'f#/5' },
-            { name: 'G2', freq: 783.99, black: false, vexKey: 'g/5' }
+            { name: 'G2', freq: 783.99, black: false, vexKey: 'g/5' },
+            { name: 'G#2',freq: 830.61, black: true,  vexKey: 'g#/5' },
+            { name: 'A2', freq: 880.00, black: false, vexKey: 'a/5' },
+            { name: 'A#2',freq: 932.33, black: true,  vexKey: 'a#/5' },
+            { name: 'B2', freq: 987.77, black: false, vexKey: 'b/5' },
+            { name: 'C3', freq: 1046.50, black: false, vexKey: 'c/6' }
         ];
 
-        const intervalSemitones = { '3m': 3, '3M': 4, '6m': 8, '6M': 9 };
-        const intervalNames = { '3m': '小三度', '3M': '大三度', '6m': '小六度', '6M': '大六度' };
+        const intervalSemitones = { 
+            '2m': 1, '2M': 2, 
+            '3m': 3, '3M': 4, 
+            '6m': 8, '6M': 9,
+            '7m': 10, '7M': 11 
+        };
+        
+        const intervalNames = { 
+            '2m': '小二度', '2M': '大二度', 
+            '3m': '小三度', '3M': '大三度', 
+            '6m': '小六度', '6M': '大六度',
+            '7m': '小七度', '7M': '大七度'
+        };
 
         let mode = 'explore';
         let quizTarget = null;
         let quizRoot = null;
         let activeOscillators = {};
-        let currentNotesOnStaff = [];
-
-        // 初始化五線譜渲染器
+        
+        // VexFlow 初始化
         const div = document.getElementById("output");
         const renderer = new Renderer(div, Renderer.Backends.SVG);
-        renderer.resize(400, 150);
+        renderer.resize(450, 150);
         const context = renderer.getContext();
 
         function drawStaff(noteIndices = []) {
             context.clear();
-            const stave = new Stave(10, 20, 380);
+            const stave = new Stave(10, 20, 430);
             stave.addClef("treble").setContext(context).draw();
 
             if (noteIndices.length > 0) {
-                const staveNotes = noteIndices.map(idx => {
+                const staveNotes = noteIndices.sort((a,b) => a-b).map(idx => {
                     const noteData = notes[idx];
                     const key = noteData.vexKey;
                     const vNote = new StaveNote({ keys: [key], duration: "q" });
                     
-                    // 處理升降號
                     if (key.includes('#')) {
                         vNote.addModifier(new Accidental("#"));
                     }
                     
-                    // 測驗模式下的顏色標註
                     if (mode === 'quiz') {
                         if (idx === quizRoot) vNote.setStyle({ fillStyle: "#3b82f6", strokeStyle: "#3b82f6" });
-                        else if (idx === quizTarget && noteIndices.includes(quizTarget)) 
-                            vNote.setStyle({ fillStyle: "#10b981", strokeStyle: "#10b981" });
+                        else if (idx === quizTarget) vNote.setStyle({ fillStyle: "#10b981", strokeStyle: "#10b981" });
                     }
                     
                     return vNote;
@@ -167,7 +183,7 @@
 
                 const voice = new Voice({ num_beats: noteIndices.length, beat_value: 4 });
                 voice.addTickables(staveNotes);
-                new Formatter().joinVoices([voice]).format([voice], 300);
+                new Formatter().joinVoices([voice]).format([voice], 350);
                 voice.draw(context, stave);
             }
         }
@@ -180,8 +196,8 @@
             key.className = `piano-key flex flex-col items-center relative ${note.black ? 'black-key' : 'white-key'}`;
             
             const label = document.createElement('span');
-            label.className = 'key-label pointer-events-none absolute bottom-2 text-[10px] text-gray-400 font-bold';
-            label.innerText = note.name.replace('2', '');
+            label.className = 'key-label pointer-events-none absolute bottom-2 text-[9px] text-gray-400 font-bold';
+            label.innerText = note.name.replace(/\d/g, '');
             key.appendChild(label);
 
             key.addEventListener('mousedown', () => playNote(index));
@@ -198,8 +214,8 @@
             const gain = audioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(notes[index].freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
@@ -208,9 +224,8 @@
             document.querySelector(`[data-index="${index}"]`).classList.add('active');
 
             if (mode === 'explore') {
-                currentNotesOnStaff = [index];
-                drawStaff(currentNotesOnStaff);
-                document.getElementById('current-info').innerText = `目前音符: ${notes[index].name.replace('2', '')}`;
+                drawStaff([index]);
+                document.getElementById('current-info').innerText = `音符: ${notes[index].name.replace(/\d/g, '')}`;
             } else {
                 handleQuizClick(index);
             }
@@ -226,7 +241,6 @@
             document.querySelector(`[data-index="${index}"]`).classList.remove('active');
         }
 
-        // 測驗邏輯
         function nextQuizTask() {
             clearHighlights();
             document.getElementById('next-btn').classList.add('hidden');
@@ -240,15 +254,15 @@
             const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
             const semitones = intervalSemitones[randomInterval];
             
+            // 隨機選根音
             quizRoot = Math.floor(Math.random() * (notes.length - semitones));
             quizTarget = quizRoot + semitones;
 
-            const rootName = notes[quizRoot].name.replace('2', '');
+            const rootName = notes[quizRoot].name.replace(/\d/g, '');
             document.getElementById('current-info').innerText = `請找出 ${rootName} 的「${intervalNames[randomInterval]}」`;
             
             document.querySelector(`[data-index="${quizRoot}"]`).classList.add('highlight-root');
-            currentNotesOnStaff = [quizRoot];
-            drawStaff(currentNotesOnStaff);
+            drawStaff([quizRoot]);
         }
 
         function handleQuizClick(clickedIndex) {
@@ -257,9 +271,9 @@
             const keyEl = document.querySelector(`[data-index="${clickedIndex}"]`);
             if (clickedIndex === quizTarget) {
                 keyEl.classList.add('highlight-correct');
-                document.getElementById('current-info').innerText = "太棒了！完全正確";
+                document.getElementById('current-info').innerText = "答對了！";
                 document.getElementById('next-btn').classList.remove('hidden');
-                drawStaff([quizRoot, quizTarget]); // 畫出兩個音
+                drawStaff([quizRoot, quizTarget]);
             } else {
                 keyEl.classList.add('highlight-wrong');
                 setTimeout(() => keyEl.classList.remove('highlight-wrong'), 500);
@@ -272,13 +286,10 @@
             });
         }
 
-        // 切換模式
         document.getElementById('mode-explore').addEventListener('click', () => {
             mode = 'explore';
-            document.getElementById('mode-explore').classList.replace('bg-slate-200', 'bg-blue-600');
-            document.getElementById('mode-explore').classList.replace('text-slate-700', 'text-white');
-            document.getElementById('mode-quiz').classList.replace('bg-blue-600', 'bg-slate-200');
-            document.getElementById('mode-quiz').classList.replace('text-white', 'text-slate-700');
+            document.getElementById('mode-explore').className = "flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm transition";
+            document.getElementById('mode-quiz').className = "flex-1 bg-slate-200 text-slate-700 px-3 py-2 rounded text-sm transition";
             document.getElementById('quiz-settings').classList.add('opacity-50', 'pointer-events-none');
             document.getElementById('current-info').innerText = "自由探索模式";
             document.getElementById('next-btn').classList.add('hidden');
@@ -288,17 +299,14 @@
 
         document.getElementById('mode-quiz').addEventListener('click', () => {
             mode = 'quiz';
-            document.getElementById('mode-quiz').classList.replace('bg-slate-200', 'bg-blue-600');
-            document.getElementById('mode-quiz').classList.replace('text-slate-700', 'text-white');
-            document.getElementById('mode-explore').classList.replace('bg-blue-600', 'bg-slate-200');
-            document.getElementById('mode-explore').classList.replace('text-white', 'text-slate-700');
+            document.getElementById('mode-quiz').className = "flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm transition";
+            document.getElementById('mode-explore').className = "flex-1 bg-slate-200 text-slate-700 px-3 py-2 rounded text-sm transition";
             document.getElementById('quiz-settings').classList.remove('opacity-50', 'pointer-events-none');
             nextQuizTask();
         });
 
         document.getElementById('next-btn').addEventListener('click', nextQuizTask);
 
-        // 初始繪製空譜
         drawStaff([]);
     </script>
 </body>
