@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鋼琴音程練習模擬器 - 全音程版</title>
+    <title>鋼琴音程練習模擬器 - 完整音程版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 VexFlow 用於繪製五線譜 -->
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
@@ -38,9 +38,9 @@
             background: #000;
             transform: translateY(2px);
         }
-        .highlight-root { background-color: #3b82f6 !important; border-color: #2563eb; color: white; }
-        .highlight-correct { background-color: #10b981 !important; border-color: #059669; color: white; }
-        .highlight-wrong { background-color: #ef4444 !important; border-color: #dc2626; color: white; }
+        .highlight-root { background-color: #3b82f6 !important; border-color: #2563eb; color: white !important; }
+        .highlight-correct { background-color: #10b981 !important; border-color: #059669; color: white !important; }
+        .highlight-wrong { background-color: #ef4444 !important; border-color: #dc2626; color: white !important; }
         
         #staff-container {
             background: white;
@@ -75,14 +75,16 @@
             <div id="quiz-settings" class="bg-slate-100 p-4 rounded-lg opacity-50 pointer-events-none">
                 <h2 class="font-semibold mb-2 text-sm">選取練習音程</h2>
                 <div class="grid grid-cols-2 gap-x-2 text-[10px]">
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2m"> 小二度</label>
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2M"> 大二度</label>
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3m"> 小三度</label>
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3M"> 大三度</label>
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度</label>
-                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7m"> 小七度</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7M"> 大七度</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2m"> 小二度 (2m)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2M"> 大二度 (2M)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3m"> 小三度 (3m)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3M"> 大三度 (3M)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="P4"> 完全四度 (P4)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="P5"> 完全五度 (P5)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度 (6m)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度 (6M)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="7m"> 小七度 (7m)</label>
+                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7M"> 大七度 (7M)</label>
                 </div>
             </div>
 
@@ -104,7 +106,7 @@
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // 音符數據 (擴展到兩個八度以上以支援七度練習)
+        // 音符數據 (擴展音域)
         const notes = [
             { name: 'C',  freq: 261.63, black: false, vexKey: 'c/4' },
             { name: 'C#', freq: 277.18, black: true,  vexKey: 'c#/4' },
@@ -136,6 +138,7 @@
         const intervalSemitones = { 
             '2m': 1, '2M': 2, 
             '3m': 3, '3M': 4, 
+            'P4': 5, 'P5': 7,
             '6m': 8, '6M': 9,
             '7m': 10, '7M': 11 
         };
@@ -143,6 +146,7 @@
         const intervalNames = { 
             '2m': '小二度', '2M': '大二度', 
             '3m': '小三度', '3M': '大三度', 
+            'P4': '完全四度', 'P5': '完全五度',
             '6m': '小六度', '6M': '大六度',
             '7m': '小七度', '7M': '大七度'
         };
@@ -247,14 +251,14 @@
             
             const activeIntervals = Array.from(document.querySelectorAll('.interval-toggle:checked')).map(el => el.value);
             if (activeIntervals.length === 0) {
-                alert("請至少選一個音程");
+                alert("請至少選一個音程進行練習");
                 return;
             }
 
             const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
             const semitones = intervalSemitones[randomInterval];
             
-            // 隨機選根音
+            // 隨機選根音，確保加了音程後不會超過鋼琴範圍
             quizRoot = Math.floor(Math.random() * (notes.length - semitones));
             quizTarget = quizRoot + semitones;
 
@@ -271,7 +275,7 @@
             const keyEl = document.querySelector(`[data-index="${clickedIndex}"]`);
             if (clickedIndex === quizTarget) {
                 keyEl.classList.add('highlight-correct');
-                document.getElementById('current-info').innerText = "答對了！";
+                document.getElementById('current-info').innerText = "完全正確！";
                 document.getElementById('next-btn').classList.remove('hidden');
                 drawStaff([quizRoot, quizTarget]);
             } else {
