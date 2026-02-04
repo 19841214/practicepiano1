@@ -75,6 +75,7 @@
             <div id="quiz-settings" class="bg-slate-100 p-4 rounded-lg opacity-50 pointer-events-none">
                 <h2 class="font-semibold mb-2 text-sm">選取練習音程</h2>
                 <div class="grid grid-cols-2 gap-x-2 text-[10px]">
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="P1"> 完全一度 (P1)</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2m"> 小二度 (2m)</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="2M"> 大二度 (2M)</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="3m"> 小三度 (3m)</label>
@@ -84,7 +85,8 @@
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6m"> 小六度 (6m)</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="6M"> 大六度 (6M)</label>
                     <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="7m"> 小七度 (7m)</label>
-                    <label class="flex items-center"><input type="checkbox" checked class="interval-toggle mr-1" value="7M"> 大七度 (7M)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="7M"> 大七度 (7M)</label>
+                    <label class="flex items-center mb-1"><input type="checkbox" checked class="interval-toggle mr-1" value="P8"> 完全八度 (P8)</label>
                 </div>
             </div>
 
@@ -106,7 +108,6 @@
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // 音符數據 (擴展音域)
         const notes = [
             { name: 'C',  freq: 261.63, black: false, vexKey: 'c/4' },
             { name: 'C#', freq: 277.18, black: true,  vexKey: 'c#/4' },
@@ -136,19 +137,21 @@
         ];
 
         const intervalSemitones = { 
-            '2m': 1, '2M': 2, 
+            'P1': 0, '2m': 1, '2M': 2, 
             '3m': 3, '3M': 4, 
             'P4': 5, 'P5': 7,
             '6m': 8, '6M': 9,
-            '7m': 10, '7M': 11 
+            '7m': 10, '7M': 11,
+            'P8': 12
         };
         
         const intervalNames = { 
-            '2m': '小二度', '2M': '大二度', 
+            'P1': '完全一度', '2m': '小二度', '2M': '大二度', 
             '3m': '小三度', '3M': '大三度', 
             'P4': '完全四度', 'P5': '完全五度',
             '6m': '小六度', '6M': '大六度',
-            '7m': '小七度', '7M': '大七度'
+            '7m': '小七度', '7M': '大七度',
+            'P8': '完全八度'
         };
 
         let mode = 'explore';
@@ -168,7 +171,12 @@
             stave.addClef("treble").setContext(context).draw();
 
             if (noteIndices.length > 0) {
-                const staveNotes = noteIndices.sort((a,b) => a-b).map(idx => {
+                // 為了正確繪製 P1，我們需要過濾重複索引，但在繪製時確保有足夠長度
+                const displayIndices = noteIndices.length === 2 && noteIndices[0] === noteIndices[1] 
+                    ? [noteIndices[0]] 
+                    : noteIndices.sort((a,b) => a-b);
+
+                const staveNotes = displayIndices.map(idx => {
                     const noteData = notes[idx];
                     const key = noteData.vexKey;
                     const vNote = new StaveNote({ keys: [key], duration: "q" });
@@ -185,14 +193,13 @@
                     return vNote;
                 });
 
-                const voice = new Voice({ num_beats: noteIndices.length, beat_value: 4 });
+                const voice = new Voice({ num_beats: displayIndices.length, beat_value: 4 });
                 voice.addTickables(staveNotes);
                 new Formatter().joinVoices([voice]).format([voice], 350);
                 voice.draw(context, stave);
             }
         }
 
-        // 初始化鋼琴
         const pianoEl = document.getElementById('piano');
         notes.forEach((note, index) => {
             const key = document.createElement('div');
@@ -258,7 +265,6 @@
             const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
             const semitones = intervalSemitones[randomInterval];
             
-            // 隨機選根音，確保加了音程後不會超過鋼琴範圍
             quizRoot = Math.floor(Math.random() * (notes.length - semitones));
             quizTarget = quizRoot + semitones;
 
@@ -270,7 +276,7 @@
         }
 
         function handleQuizClick(clickedIndex) {
-            if (clickedIndex === quizRoot || !document.getElementById('next-btn').classList.contains('hidden')) return;
+            if (!document.getElementById('next-btn').classList.contains('hidden')) return;
 
             const keyEl = document.querySelector(`[data-index="${clickedIndex}"]`);
             if (clickedIndex === quizTarget) {
